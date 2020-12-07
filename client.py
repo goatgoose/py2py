@@ -25,14 +25,12 @@ class Client:
         self.listen_thread = None
         self.client_threads = {}  # connection : thread
 
-        self.id = None
         self.addresses = []
 
     def allocate(self):
         req = requests.request("POST", self.server_url + "/allocate", data={
             "port": self.address.port
         }).json()
-        self.id = req.get("id")
         self.addresses = [Address(ip, port) for ip, port in req.get("addresses")]
         self.__log(f"allocate: {self.id}, {self.addresses}")
 
