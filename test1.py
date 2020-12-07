@@ -1,19 +1,32 @@
 from client import Client
 import time
+import sys
 
 
 class TestClient(Client):
-    def on_receive(self, content, from_):
-        print(from_, content)
+    def on_test(self, obj, from_):
+        print(f"on_test: {from_}, {obj}")
+
+    @property
+    def message_handlers(self):
+        return {
+            "test": self.on_test
+        }
 
 
 if __name__ == '__main__':
-    client1 = TestClient("127.0.0.1", 1142, "http://127.0.0.1")
+    client1 = TestClient("127.0.0.1", 1143, "http://127.0.0.1:1140", verbose=True)
     client1.allocate()
 
-    client2 = TestClient("127.0.0.1", 1143, "http://127.0.0.1")
+    client2 = TestClient("127.0.0.1", 1144, "http://127.0.0.1:1140", verbose=True)
     client2.allocate()
 
     time.sleep(5)
 
-    client1.broadcast_message("hello other clients!")
+    client1.send_message({
+        "type": "test",
+        "message": "hello other client!"
+    }, ("127.0.0.1", 1144))
+
+    client1.shutdown()
+    client2.shutdown()

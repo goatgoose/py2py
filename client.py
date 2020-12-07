@@ -4,7 +4,7 @@ import requests
 from util import Address
 import threading
 import json
-from message import Message
+import time
 
 
 class Client:
@@ -29,32 +29,51 @@ class Client:
         self.addresses = []
 
     def allocate(self):
-        req = requests.request("POST", self.server_url, data={
+        req = requests.request("POST", self.server_url + "/allocate", data={
             "port": self.address.port
         }).json()
         self.id = req.get("id")
         self.addresses = [Address(ip, port) for ip, port in req.get("addresses")]
         self.__log(f"allocate: {self.id}, {self.addresses}")
 
+        self.socket.listen(self.neighbors)
         self.listen_thread = threading.Thread(target=self._listen_target)
         self.listen_thread.start()
 
     def broadcast_message(self, content):
         pass
 
-    def send_message(self, content, to):
+    @staticmethod
+    def send_message(obj, dest):
+        message_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        message_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        message_socket.bind(("0.0.0.0", 1141))
+        message_socket.connect(dest)
+
+        to_send = json.dumps(obj) + "\n"
+        to_send = to_send.encode()
+        message_socket.sendall(to_send)
+
+        return Client._receive(message_socket)
+
+    @property
+    @abstractmethod
+    def message_handlers(self):
+        # map of message type to handler function
         pass
 
-    @abstractmethod
-    def on_receive(self, content, from_):
-        pass
+    def shutdown(self):
+        self.is_finished = True
 
     def _forwarding_tree(self):
         # creates a tree of addresses, where each address points to the next address the message should be sent to.
         pass
 
     def _keep_alive_target(self):
-        pass
+        while not self.is_finished:
+            req = requests.request("GET", self.server_url + "/keep_alive").json()
+            [Address(ip, port) for ip, port in req.get("addresses")]
+            time.sleep(3)
 
     def _listen_target(self):
         while not self.is_finished:
@@ -66,30 +85,27 @@ class Client:
                 self.client_threads[conn] = client_thread
                 client_thread.start()
             except socket.error as e:
-                print("socket exception")
-                print(e)
+                self.__log("socket exception")
+                self.__log(e)
                 return
+            print("not finished!")
 
     def _receive_message_target(self, conn):
+        obj = self._receive(conn)
+        from_ = conn.getpeername()
+        self.message_handlers[obj.pop("type")](obj, from_)
+
+    @staticmethod
+    def _receive(conn):
         buffer = ""
         while True:
-            recv = conn.recv(65535)
-            if not recv:
-                self.client_threads.pop(conn)
-                self.__log(f"sock closed: {conn}")
-                return
-
+            recv = conn.recv(4096)
             buffer += recv.decode("utf-8")
-            lines = buffer.split("\n")
-            buffer = lines[-1]
+            if buffer[-1] == "\n":
+                break
 
-            for line in lines[:-1]:
-                self._receive(json.loads(line), conn.getpeername())
-
-    def _receive(self, recv_obj, from_):
-        message = Message.from_json(recv_obj)
-        self.on_receive(message.content, from_)
+        return json.loads(buffer)
 
     def __log(self, message):
         if self.verbose:
-            print(message)
+            print(f"[{self.address}] {message}")
