@@ -6,6 +6,7 @@ import sys
 class TestClient(Client):
     def on_test(self, obj, from_):
         print(f"on_test: {from_}, {obj}")
+        return "hi!"
 
     @property
     def message_handlers(self):
@@ -23,10 +24,12 @@ if __name__ == '__main__':
 
     time.sleep(5)
 
-    client1.send_message({
+    ret = client1.send_message({
         "type": "test",
         "message": "hello other client!"
     }, ("127.0.0.1", 1144))
+    print("return: ")
+    print(ret)
 
     client1.shutdown()
     client2.shutdown()

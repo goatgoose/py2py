@@ -32,7 +32,7 @@ class Client:
             "port": self.address.port
         }).json()
         self.addresses = [Address(ip, port) for ip, port in req.get("addresses")]
-        self.__log(f"allocate: {self.id}, {self.addresses}")
+        self.__log(f"allocate: {self.addresses}")
 
         self.socket.listen(self.neighbors)
         self.listen_thread = threading.Thread(target=self._listen_target)
