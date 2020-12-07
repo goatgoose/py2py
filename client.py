@@ -75,7 +75,7 @@ class Client:
     def _keep_alive_target(self):
         while not self.is_finished:
             req = requests.request("GET", self.server_url + "/keep_alive").json()
-            [Address(ip, port) for ip, port in req.get("addresses")]
+            self.addresses = [Address(ip, port) for ip, port in req.get("addresses")]
             time.sleep(3)
 
     def _listen_target(self):
