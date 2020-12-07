@@ -13,6 +13,8 @@ def allocate():
     port = request.form.get("port")
 
     id_ = str(uuid.uuid4())
+    addresses[id_] = (ip, port)
+
     return json.dumps({
         "id": id_,
         "addresses": addresses.values()
