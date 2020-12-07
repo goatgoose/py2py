@@ -50,11 +50,15 @@ class Client:
         message_socket.bind(("0.0.0.0", 1141))
         message_socket.connect(dest)
 
-        to_send = json.dumps(obj) + "\n"
-        to_send = to_send.encode()
-        message_socket.sendall(to_send)
+        Client._send_to_conn(obj, message_socket)
 
         return Client._receive(message_socket)
+
+    @staticmethod
+    def _send_to_conn(obj, conn):
+        to_send = json.dumps(obj) + "\n"
+        to_send = to_send.encode()
+        conn.sendall(to_send)
 
     @property
     @abstractmethod
@@ -64,6 +68,7 @@ class Client:
 
     def shutdown(self):
         self.is_finished = True
+        self.socket.close()
 
     def _forwarding_tree(self):
         # creates a tree of addresses, where each address points to the next address the message should be sent to.
@@ -93,7 +98,8 @@ class Client:
     def _receive_message_target(self, conn):
         obj = self._receive(conn)
         from_ = conn.getpeername()
-        self.message_handlers[obj.pop("type")](obj, from_)
+        response = self.message_handlers[obj.pop("type")](obj, from_)
+        self._send_to_conn(response, conn)
 
     @staticmethod
     def _receive(conn):
